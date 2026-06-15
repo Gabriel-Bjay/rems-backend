@@ -18,8 +18,8 @@ class AgentController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name'  => ['required', 'string', 'max:100'],
+            'fname' => ['required', 'string', 'max:100'],
+            'lname'  => ['required', 'string', 'max:100'],
             'email'      => ['required', 'email', 'max:255', 'unique:agents,email'],
             'phone'      => ['nullable', 'string', 'max:30'],
         ]);
@@ -53,8 +53,8 @@ class AgentController extends Controller
         }
 
         $data = $request->validate([
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name'  => ['required', 'string', 'max:100'],
+            'fname' => ['required', 'string', 'max:100'],
+            'lname'  => ['required', 'string', 'max:100'],
             'email'      => ['required', 'email', 'max:255', Rule::unique('agents', 'email')->ignore($id)],
             'phone'      => ['nullable', 'string', 'max:30'],
         ]);
