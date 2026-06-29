@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('tenants', function (Blueprint $table) {
             $table->id();
+             $table->foreignId('user_id')->nullable()->unique()->constrained()->nullOnDelete();
             $table->string('fname', 100);
             $table->string('lname', 100);
             $table->string('email', 255)->unique();

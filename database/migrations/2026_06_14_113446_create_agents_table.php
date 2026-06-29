@@ -10,10 +10,12 @@ return new class extends Migration
     {
         Schema::create('agents', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->nullable()->unique()->constrained();
             $table->string('fname', 100);
             $table->string('lname', 100);
             $table->string('email', 255)->unique();
             $table->string('phone', 30)->nullable();
+            $table->decimal('commision_rate', 5, 2)->default(0);
             $table->timestamps();
         });
     }
