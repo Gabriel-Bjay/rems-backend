@@ -15,6 +15,8 @@ class AdminUserSeeder extends Seeder
             [
                 'name' => 'REMS Administrator',
                 'password' => Hash::make('password123'),
+                'role' => 'admin',
+                'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
