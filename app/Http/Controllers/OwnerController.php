@@ -8,6 +8,7 @@ use Illuminate\Validation\Rule;
 
 class OwnerController extends Controller
 {
+    //Return list of all owners
     public function index()
     {
         $owners = DB::table('owners')->orderBy('id')->get();
@@ -15,7 +16,7 @@ class OwnerController extends Controller
             response()->json($owners)
         ;
     }
-
+    //save a new owner function 
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -35,7 +36,7 @@ class OwnerController extends Controller
             response()->json($owner, 201)
         ;
     }
-
+    //Get owner by specific id
    public function show(string $id)
     {
         $owner = DB::table('owners')->find($id);
@@ -46,7 +47,7 @@ class OwnerController extends Controller
 
         return response()->json($owner);
     }
-
+    //Edit owner using specific id
     public function update(Request $request, string $id)
     {
         $owner = DB::table('owners')->find($id);
@@ -73,7 +74,7 @@ class OwnerController extends Controller
             response()->json($owner)
         ;
     }
-
+    //Delete owner record using specific owner id
     public function destroy(string $id)
     {
         $owner = DB::table('owners')->find($id);

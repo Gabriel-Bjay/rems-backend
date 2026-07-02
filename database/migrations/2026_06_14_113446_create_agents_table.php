@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('lname', 100);
             $table->string('email', 255)->unique();
             $table->string('phone', 30)->nullable();
-            $table->decimal('commision_rate', 5, 2)->default(0);
+            $table->decimal('commission_rate', 5, 2)->default(0);
             $table->timestamps();
         });
     }
