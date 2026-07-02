@@ -25,9 +25,7 @@ class AgentController extends Controller
             'phone'      => ['nullable', 'string', 'max:30'],
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
-
-        $data['phone'] = $data['phone'] ?? null;
-        $data['commission_rate'] = $data['commission_rate'] ?? 0;
+        
         $data['created_at'] = now();
         $data['updated_at'] = now();
 
