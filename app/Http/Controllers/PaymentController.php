@@ -39,7 +39,7 @@ class PaymentController extends Controller
         $data['paid_at'] = $data['paid_at'] ?? now();
         $data['status'] = 'unmatched';
         $data['reverses_payment_id'] = null;
-        $data['recorded_by_user_id'] = auth()->id();
+        $data['recorded_by_user_id'] = $request->user()->id;
         $data['confirmed_by_user_id'] = null;
         $data['created_at'] = now();
         $data['updated_at'] = now();
@@ -115,5 +115,34 @@ class PaymentController extends Controller
 
         return 
             response()->json(null, 204);
+    }
+    /**
+     * Confirm the specified payment.
+     */
+    public function confirm(Request $request, string $id)
+    {
+        $payment = DB::table('payments')->find($id);
+
+        if (! $payment) {
+            return response()->json(['message' => 'Payment not found.'], 404);
+        }
+
+        if ($payment->status !== 'unmatched') {
+            return response()->json([
+                'message' => 'Only an unmatched payment can be confirmed.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($request, $id) {
+            DB::table('payments')->where('id', $id)->update([
+                'status' => 'completed',
+                'confirmed_by_user_id' => $request->user()->id,
+                'updated_at' => now(),
+            ]);
+        });
+
+        $payment = DB::table('payments')->find($id);
+
+        return response()->json($payment);
     }
 }
