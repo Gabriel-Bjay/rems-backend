@@ -6,6 +6,7 @@ use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\DepositController;
 use App\Http\Controllers\ListingController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OwnerController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PropertyController;
@@ -30,6 +31,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('maintenance-tickets/{id}/resolve', [MaintenanceController::class, 'resolve']);
     Route::post('listings/{id}/publish', [ListingController::class, 'publish']);
     Route::post('listings/{id}/take-down', [ListingController::class, 'takeDown']);
+     Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+    Route::post('notifications/{id}/mark-read', [NotificationController::class, 'markRead']);
 
     Route::apiResource('owners', OwnerController::class);
     Route::apiResource('agents', AgentController::class);
@@ -47,4 +50,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('maintenance-tickets', MaintenanceController::class);
     Route::post('listings/{id}/approve', [ListingController::class, 'approve']);
     Route::apiResource('listings', ListingController::class);
+    Route::apiResource('notifications', NotificationController::class);
 });
