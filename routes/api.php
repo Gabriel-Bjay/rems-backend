@@ -4,14 +4,15 @@ use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DepositController;
 use App\Http\Controllers\OwnerController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PropertyController;
+use App\Http\Controllers\RefundController;
 use App\Http\Controllers\TenancyChargeController;
 use App\Http\Controllers\TenancyController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\UnitChargeController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\VacateNoticesController;
-use App\Http\Controllers\PaymentController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -34,4 +35,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('deposits', DepositController::class);
     Route::apiResource('vacate-notices', VacateNoticesController::class);
     Route::apiResource('payments', PaymentController::class);
+    Route::apiResource('refunds', RefundController::class);
 });
