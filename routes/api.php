@@ -14,6 +14,7 @@ use App\Http\Controllers\TenantController;
 use App\Http\Controllers\UnitChargeController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\VacateNoticesController;
+use App\Http\Controllers\MaintenanceController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -24,6 +25,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('tenancies/{id}/activate', [TenancyController::class, 'activate']);
     Route::post('tenancies/{id}/end', [TenancyController::class, 'end']);
     Route::post('payments/{id}/confirm', [PaymentController::class, 'confirm']);
+    Route::post('maintenance-tickets/{id}/assign', [MaintenanceController::class, 'assign']);
+    Route::post('maintenance-tickets/{id}/resolve', [MaintenanceController::class, 'resolve']);
 
     Route::apiResource('owners', OwnerController::class);
     Route::apiResource('agents', AgentController::class);
@@ -38,4 +41,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('payments', PaymentController::class);
     Route::apiResource('refunds', RefundController::class);
     Route::apiResource('commissions', CommissionController::class);
+    Route::apiResource('maintenance-tickets', MaintenanceController::class);
 });
