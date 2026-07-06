@@ -137,4 +137,41 @@ class TenancyController extends Controller
     return 
         response()->json($updatedTenancy);
     }
+    // End a specific tenancy by ID
+    public function end(string $id){
+        $tenancy = DB::table('tenancies')->find($id);
+
+        if (! $tenancy) {
+            return 
+                response()->json(['message' => 'Tenancy not found.'], 404);
+        }
+
+        if ($tenancy->status !== 'active') {
+            return 
+                response()->json([
+                    'message' => 'Only active tenancies can be ended.'
+                    ], 422);
+        }
+
+        DB::transaction(function () use ($tenancy) {
+            DB::table('tenancies')
+                ->where('id', $tenancy->id)
+                ->update([
+                    'status' => 'ended',
+                    'updated_at' => now(),
+                ]);
+
+            DB::table('units')
+                ->where('id', $tenancy->unit_id)
+                ->update([
+                    'status' => 'vacant',
+                    'updated_at' => now(),
+                ]);
+        });
+
+        $updatedTenancy = DB::table('tenancies')->find($id);
+
+        return 
+            response()->json($updatedTenancy);
+    }
 }

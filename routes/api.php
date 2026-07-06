@@ -16,6 +16,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('tenancies/{id}/activate', [TenancyController::class, 'activate']);
+    Route::post('tenancies/{id}/end', [TenancyController::class, 'end']);
 
     Route::apiResource('owners', OwnerController::class);
     Route::apiResource('agents', AgentController::class);
