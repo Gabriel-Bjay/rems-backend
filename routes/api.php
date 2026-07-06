@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\DepositController;
 use App\Http\Controllers\OwnerController;
 use App\Http\Controllers\PaymentController;
@@ -36,4 +37,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('vacate-notices', VacateNoticesController::class);
     Route::apiResource('payments', PaymentController::class);
     Route::apiResource('refunds', RefundController::class);
+    Route::apiResource('commissions', CommissionController::class);
 });
