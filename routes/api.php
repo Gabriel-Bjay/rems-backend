@@ -21,6 +21,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('tenancies/{id}/activate', [TenancyController::class, 'activate']);
     Route::post('tenancies/{id}/end', [TenancyController::class, 'end']);
+    Route::post('payments/{id}/confirm', [PaymentController::class, 'confirm']);
 
     Route::apiResource('owners', OwnerController::class);
     Route::apiResource('agents', AgentController::class);
