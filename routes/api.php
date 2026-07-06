@@ -10,6 +10,7 @@ use App\Http\Controllers\TenancyController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\UnitChargeController;
 use App\Http\Controllers\UnitController;
+use App\Http\Controllers\VacateNoticesController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -29,4 +30,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('tenancies', TenancyController::class);
     Route::apiResource('tenancy-charges', TenancyChargeController::class);
     Route::apiResource('deposits', DepositController::class);
+    Route::apiResource('vacate-notices', VacateNoticesController::class);
 });
