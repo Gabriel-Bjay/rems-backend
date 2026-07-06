@@ -21,14 +21,13 @@ class TenancyChargeController extends Controller
             'amount' => ['required', 'numeric', 'min:0'],
         ]);
 
-        $data['tenancy_id'] = $data['tenancy_id'] ?? null;
         $data['created_at'] = now();
         $data['updated_at'] = now();
 
         $id = DB::table('tenancy_charges')->insertGetId($data);
         $tenancy_charge = DB::table('tenancy_charges')->find($id);
         return 
-            response()->json($tenancy_charge);
+            response()->json($tenancy_charge, 201);
     }
     //Return single tenancy charge record using specific id
     public function show(string $id){
@@ -57,7 +56,6 @@ class TenancyChargeController extends Controller
             'amount' => ['required', 'numeric', 'min:0'],
         ]);
 
-        $data['tenancy_id'] = $data['tenancy_id'] ?? null;
         $data['updated_at'] = now();
         
         DB::table('tenancy_charges')->where('id', $id)->update($data);

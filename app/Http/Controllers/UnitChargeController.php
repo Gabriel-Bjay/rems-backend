@@ -20,7 +20,6 @@ class UnitChargeController extends Controller
             'amount' => ['required', 'numeric', 'min:0'],
         ]);
 
-        $data['unit_id'] = $data['unit_id'] ?? null;
         $data['created_at'] = now();
         $data['updated_at'] = now();
 

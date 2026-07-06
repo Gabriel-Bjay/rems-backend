@@ -1,13 +1,14 @@
 <?php
 
+use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\OwnerController;
-use App\Http\Controllers\AgentController;
-use App\Http\Controllers\TenantController;
 use App\Http\Controllers\PropertyController;
-use App\Http\Controllers\UnitController;
-use App\Http\Controllers\UnitChargeController;
+use App\Http\Controllers\TenancyChargeController;
 use App\Http\Controllers\TenancyController;
+use App\Http\Controllers\TenantController;
+use App\Http\Controllers\UnitChargeController;
+use App\Http\Controllers\UnitController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -25,4 +26,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('units', UnitController::class);
     Route::apiResource('unit-charges', UnitChargeController::class);
     Route::apiResource('tenancies', TenancyController::class);
+    Route::apiResource('tenancy-charges', TenancyChargeController::class);
 });
