@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DepositController;
 use App\Http\Controllers\OwnerController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\TenancyChargeController;
@@ -27,4 +28,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('unit-charges', UnitChargeController::class);
     Route::apiResource('tenancies', TenancyController::class);
     Route::apiResource('tenancy-charges', TenancyChargeController::class);
+    Route::apiResource('deposits', DepositController::class);
 });
