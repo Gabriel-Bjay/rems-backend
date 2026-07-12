@@ -47,7 +47,7 @@ class InvoiceItemController extends Controller
 
         return response()->json($invoice_item);
     }
-        public function update(Request $request, string $id)
+    public function update(Request $request, string $id)
     {
         $invoice_item = DB::table('invoice_items')->find($id);
 
