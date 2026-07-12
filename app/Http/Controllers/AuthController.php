@@ -11,30 +11,61 @@ use Illuminate\Validation\Rule;
 class AuthController extends Controller
 {
     //Create new User Login
-    public function register(Request $request){
+public function register(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8'],
+            'role' => ['required', Rule::in(['admin', 'owner', 'agent', 'tenant'])],
+            'profile_id' => ['nullable', 'integer'],
+        ]);
 
-    $data = $request->validate([
-        'name' => ['required', 'string', 'max:255'],
-        'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-        'password' => ['required', 'string', 'min:8'],
-        'role' => ['required', Rule::in(['admin', 'owner', 'agent', 'tenant'])],
-    ]);
+        $profileTable = match ($data['role']) {
+            'owner' => 'owners',
+            'agent' => 'agents',
+            'tenant' => 'tenants',
+            default => null,
+        };
 
-    $userId = DB::table('users')->insertGetId([
-        'name' => $data['name'],
-        'email' => $data['email'],
-        'password' => Hash::make($data['password']),
-        'role' => $data['role'],
-        'status' => 'active',
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
+        if ($profileTable && ! empty($data['profile_id'])) {
+            $profile = DB::table($profileTable)->find($data['profile_id']);
 
-    $user = DB::table('users')
-        ->select('id', 'name', 'email', 'role', 'status')
-        ->find($userId);
+            if (! $profile) {
+                return response()->json(['message' => 'The selected profile does not exist.'], 422);
+            }
 
-    return response()->json($user, 201);
+            if ($profile->user_id !== null) {
+                return response()->json(['message' => 'That profile is already linked to a user account.'], 422);
+            }
+        }
+
+            $userId = DB::transaction(function () use ($data, $profileTable) {
+            $userId = DB::table('users')->insertGetId([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+                'role' => $data['role'],
+                'status' => 'active',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            if ($profileTable && ! empty($data['profile_id'])) {
+                DB::table($profileTable)->where('id', $data['profile_id'])->update([
+                    'user_id' => $userId,
+                    'updated_at' => now(),
+                ]);
+            }
+
+            return $userId;
+        });
+
+        $user = DB::table('users')
+            ->select('id', 'name', 'email', 'role', 'status')
+            ->find($userId);
+
+        return response()->json($user, 201);
     }
 
     //Login function
