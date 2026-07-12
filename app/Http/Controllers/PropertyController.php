@@ -8,12 +8,23 @@ use Illuminate\Support\Facades\DB;
 class PropertyController extends Controller
 {
     //Show properties list
-    public function index()
+    public function index(Request $request)
     {
-        $properties = DB::table('properties')->orderBy('id')->get();
+        $user = $request->user();
 
-        return 
-            response()->json($properties);
+        $query = DB::table('properties');
+
+        // an owner sees only their own properties
+        if ($user->role === 'owner') {
+            $owner = DB::table('owners')->where('user_id', $user->id)->first();
+            $query->where('owner_id', $owner->id ?? 0);
+        }
+
+        // admin falls through and sees everything
+
+        $properties = $query->orderByDesc('id')->get();
+
+        return response()->json($properties, 200);
     }
 
     //Create new property
@@ -39,18 +50,26 @@ class PropertyController extends Controller
             response()->json($property, 201);
     }
 
-    //Get property details using specific property id
-    public function show(string $id)
+    //Get property details 
+    public function show(Request $request, string $id)
     {
         $property = DB::table('properties')->find($id);
 
         if (! $property) {
-            return 
-                response()->json(['message' => 'Property not found.'], 404);
+            return response()->json(['message' => 'Property not found.'], 404);
         }
 
-        return 
-            response()->json($property);
+        $user = $request->user();
+
+        if ($user->role === 'owner') {
+            $owner = DB::table('owners')->where('user_id', $user->id)->first();
+
+            if (! $owner || $property->owner_id != $owner->id) {
+                return response()->json(['message' => 'You do not have access to this property.'], 403);
+            }
+        }
+
+        return response()->json($property);
     }
 
     //Edit property details using specific property id
