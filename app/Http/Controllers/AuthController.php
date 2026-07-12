@@ -12,11 +12,6 @@ class AuthController extends Controller
 {
     //Create new User Login
     public function register(Request $request){
-        if ($request->user()->role !== 'admin') {
-        return response()->json([
-            'message' => 'Only an admin can create user accounts.',
-        ], 403);
-    }
 
     $data = $request->validate([
         'name' => ['required', 'string', 'max:255'],
@@ -41,7 +36,7 @@ class AuthController extends Controller
 
     return response()->json($user, 201);
     }
-    
+
     //Login function
     public function login(Request $request)
     {

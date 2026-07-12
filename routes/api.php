@@ -24,7 +24,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
-    Route::post('register', [AuthController::class, 'register']);
+    Route::post('register', [AuthController::class, 'register'])->middleware('role:admin');
 
     Route::post('tenancies/{id}/activate', [TenancyController::class, 'activate']);
     Route::post('tenancies/{id}/end', [TenancyController::class, 'end']);
@@ -36,7 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('listings/{id}/publish', [ListingController::class, 'publish']);
     Route::post('listings/{id}/take-down', [ListingController::class, 'takeDown']);
-    
+
      Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
     Route::post('notifications/{id}/mark-read', [NotificationController::class, 'markRead']);
 
