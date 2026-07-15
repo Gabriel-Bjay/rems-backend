@@ -83,10 +83,18 @@ class OwnerController extends Controller
             return response()->json(['message' => 'Owner not found.'], 404);
         }
 
-        DB::table('owners')->where('id', $id)->delete();
 
-        return
-            response()->json(null, 204)
-        ;
+    $hasProperties = DB::table('properties')->where('owner_id', $id)->exists();
+
+    if ($hasProperties) {
+        return response()->json([
+            'message' => 'This owner still has properties and cannot be deleted. Reassign or remove those properties first.',
+        ], 409);
+    }
+
+    DB::table('owners')->where('id', $id)->delete();
+
+    return 
+        response()->json(null, 204);
     }
 }
