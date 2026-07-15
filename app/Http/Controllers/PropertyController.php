@@ -82,6 +82,16 @@ class PropertyController extends Controller
                 response()->json(['message' => 'Property not found.'], 404);
         }
 
+        $user = $request->user();
+
+        if ($user->role === 'owner') {
+            $owner = DB::table('owners')->where('user_id', $user->id)->first();
+
+            if (! $owner || $property->owner_id != $owner->id) {
+                return response()->json(['message' => 'You do not have access to this property.'], 403);
+            }
+        }
+
         $data = $request->validate([
             'owner_id' => ['required', 'integer', 'exists:owners,id'],
             'agent_id' => ['nullable', 'integer', 'exists:agents,id'],
@@ -102,18 +112,25 @@ class PropertyController extends Controller
     }
 
     //Delete property using specific property id
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
         $property = DB::table('properties')->find($id);
 
         if (! $property) {
-            return 
-                response()->json(['message' => 'Property not found.'], 404);
+            return response()->json(['message' => 'Property not found.'], 404);
+        }
+
+        // a property cannot be removed while units still reference it
+        $hasUnits = DB::table('units')->where('property_id', $id)->exists();
+
+        if ($hasUnits) {
+            return response()->json([
+                'message' => 'This property still has units and cannot be deleted. Remove its units first.',
+            ], 409);
         }
 
         DB::table('properties')->where('id', $id)->delete();
 
-        return 
-            response()->json(null, 204);
+        return response()->json(null, 204);
     }
 }
