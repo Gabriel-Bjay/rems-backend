@@ -10,10 +10,12 @@ return new class extends Migration
     {
         Schema::create('owners', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->nullable()->unique()->constrained()->nullOnDelete();
             $table->string('fname', 100);
             $table->string('lname', 100);
             $table->string('email', 255)->unique();
             $table->string('phone', 30)->nullable();
+            $table->enum('status', ['pending', 'active'])->default('pending');
             $table->timestamps();
         });
     }
