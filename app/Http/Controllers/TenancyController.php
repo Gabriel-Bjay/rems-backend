@@ -2,22 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class TenancyController extends Controller
 {
-    // Get and return a list of tenancies
+    // Get and return a list of tenancies.
+
     public function index()
     {
-        $tenancies = DB::table('tenancies')->orderBy('id')->get();
-        
-        return 
-            response()->json($tenancies);
-        
+        $tenancies = DB::table('tenancies')
+            ->orderBy('id')
+            ->get();
+
+        return response()->json($tenancies);
     }
-    // Validate and store a new tenancy
+
+    // Validate and store a new tenancy.
+
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -25,8 +29,8 @@ class TenancyController extends Controller
             'tenant_id' => ['required', 'integer', 'exists:tenants,id'],
             'drafted_by_agent_id' => ['nullable', 'integer', 'exists:agents,id'],
             'start_date' => ['required', 'date'],
-            'end_date' => ['nullable', 'date'],
-            'billing_cycle' => ['nullable', Rule::in(['monthly', 'quarterly', 'annually']) ],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'billing_cycle' => ['nullable', Rule::in(['monthly', 'quarterly', 'annually'])],
         ]);
 
         $data['drafted_by_agent_id'] = $data['drafted_by_agent_id'] ?? null;
@@ -37,32 +41,37 @@ class TenancyController extends Controller
         $data['updated_at'] = now();
 
         $id = DB::table('tenancies')->insertGetId($data);
-        $tenancy = DB::table('tenancies')->find($id);
 
-        return 
-            response()->json($tenancy, 201);
+        return response()->json(
+            DB::table('tenancies')->find($id),
+            201
+        );
     }
-    // Get and return a specific tenancy by ID
+
+    // Get and return a specific tenancy.
     public function show(string $id)
     {
         $tenancy = DB::table('tenancies')->find($id);
 
         if (! $tenancy) {
-            return 
-                response()->json(['message' => 'Tenancy not found.'], 404);
+            return response()->json([
+                'message' => 'Tenancy not found.',
+            ], 404);
         }
 
-        return 
-            response()->json($tenancy);
+        return response()->json($tenancy);
     }
-    // Validate and update a specific tenancy by ID           
+
+    // Validate and update a tenancy.
+
     public function update(Request $request, string $id)
     {
         $tenancy = DB::table('tenancies')->find($id);
 
         if (! $tenancy) {
-            return 
-                response()->json(['message' => 'Tenancy not found.'], 404);
+            return response()->json([
+                'message' => 'Tenancy not found.',
+            ], 404);
         }
 
         $data = $request->validate([
@@ -70,8 +79,8 @@ class TenancyController extends Controller
             'tenant_id' => ['required', 'integer', 'exists:tenants,id'],
             'drafted_by_agent_id' => ['nullable', 'integer', 'exists:agents,id'],
             'start_date' => ['required', 'date'],
-            'end_date' => ['nullable', 'date', 'after:start_date'],
-            'billing_cycle' => ['nullable', Rule::in(['monthly', 'quarterly', 'annually']) ],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'billing_cycle' => ['nullable', Rule::in(['monthly', 'quarterly', 'annually'])],
         ]);
 
         $data['drafted_by_agent_id'] = $data['drafted_by_agent_id'] ?? null;
@@ -79,85 +88,124 @@ class TenancyController extends Controller
         $data['billing_cycle'] = $data['billing_cycle'] ?? 'monthly';
         $data['updated_at'] = now();
 
-        DB::table('tenancies')->where('id', $id)->update($data);
-        $tenancy = DB::table('tenancies')->find($id);
+        DB::table('tenancies')
+            ->where('id', $id)
+            ->update($data);
 
-        return 
-            response()->json($tenancy);
+        return response()->json(
+            DB::table('tenancies')->find($id)
+        );
     }
-    //Delete a specific tenancy by ID
+
+    // Delete a tenancy
     public function destroy(string $id)
     {
         $tenancy = DB::table('tenancies')->find($id);
 
         if (! $tenancy) {
-            return 
-                response()->json(['message' => 'Tenancy not found.'], 404);
+            return response()->json([
+                'message' => 'Tenancy not found.',
+            ], 404);
         }
 
-        DB::table('tenancies')->where('id', $id)->delete();
+        if ($tenancy->status === 'active') {
+            return response()->json([
+                'message' => 'Active tenancies cannot be deleted. End the tenancy first.',
+            ], 422);
+        }
 
-        return 
-            response()->json(null, 204);
+        DB::table('tenancies')
+            ->where('id', $id)
+            ->delete();
+
+        return response()->json(null, 204);
     }
-    // Activate a specific tenancy by ID
+
+    // Activate a tenancy.
     public function activate(string $id)
     {
         $tenancy = DB::table('tenancies')->find($id);
 
         if (! $tenancy) {
-            return 
-                response()->json(['message' => 'Tenancy not found.'], 404);
+            return response()->json([
+                'message' => 'Tenancy not found.',
+            ], 404);
         }
 
         if ($tenancy->status !== 'draft') {
-            return 
-                response()->json([
-                    'message' => 'Only draft tenancies can be activated.'
-                    ], 422);
+            return response()->json([
+                'message' => 'Only draft tenancies can be activated.',
+            ], 422);
         }
-        DB::transaction(function () use ($tenancy) {
-            DB::table('tenancies')
-                ->where('id', $tenancy->id)
-                ->update([
-                    'status' => 'active',
-                    'updated_at' => now(),
-                ]);
 
-            DB::table('units')
-                ->where('id', $tenancy->unit_id)
-                ->update([
-                    'status' => 'occupied',
-                    'updated_at' => now(),
-                ]);
-        });
+        $unit = DB::table('units')
+            ->where('id', $tenancy->unit_id)
+            ->first();
 
-    $updatedTenancy = DB::table('tenancies')->find($id);
+        if (! $unit) {
+            return response()->json([
+                'message' => 'Unit not found.',
+            ], 404);
+        }
 
-    return 
-        response()->json($updatedTenancy);
+        if ($unit->status !== 'vacant') {
+            return response()->json([
+                'message' => 'This unit is not vacant.',
+            ], 422);
+        }
+
+        try {
+            DB::transaction(function () use ($tenancy) {
+
+                DB::table('tenancies')
+                    ->where('id', $tenancy->id)
+                    ->update([
+                        'status' => 'active',
+                        'updated_at' => now(),
+                    ]);
+
+                DB::table('units')
+                    ->where('id', $tenancy->unit_id)
+                    ->update([
+                        'status' => 'occupied',
+                        'updated_at' => now(),
+                    ]);
+            });
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'This unit already has an active tenancy.',
+            ], 422);
+        }
+
+        return response()->json(
+            DB::table('tenancies')->find($id)
+        );
     }
-    // End a specific tenancy by ID
-    public function end(string $id){
+
+    // End a tenancy.
+    public function end(string $id)
+    {
         $tenancy = DB::table('tenancies')->find($id);
 
         if (! $tenancy) {
-            return 
-                response()->json(['message' => 'Tenancy not found.'], 404);
+            return response()->json([
+                'message' => 'Tenancy not found.',
+            ], 404);
         }
 
         if ($tenancy->status !== 'active') {
-            return 
-                response()->json([
-                    'message' => 'Only active tenancies can be ended.'
-                    ], 422);
+            return response()->json([
+                'message' => 'Only active tenancies can be ended.',
+            ], 422);
         }
 
         DB::transaction(function () use ($tenancy) {
+
             DB::table('tenancies')
                 ->where('id', $tenancy->id)
                 ->update([
                     'status' => 'ended',
+                    'end_date' => $tenancy->end_date ?? now()->toDateString(),
                     'updated_at' => now(),
                 ]);
 
@@ -169,9 +217,8 @@ class TenancyController extends Controller
                 ]);
         });
 
-        $updatedTenancy = DB::table('tenancies')->find($id);
-
-        return 
-            response()->json($updatedTenancy);
+        return response()->json(
+            DB::table('tenancies')->find($id)
+        );
     }
 }
