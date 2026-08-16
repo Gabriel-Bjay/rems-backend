@@ -10,14 +10,23 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::transaction(function () {
+        $email = env('ADMIN_EMAIL');
+        $password = env('ADMIN_PASSWORD');
+
+        if (! $email || ! $password) {
+            throw new \RuntimeException(
+                'ADMIN_EMAIL and ADMIN_PASSWORD must be configured.'
+            );
+        }
+
+        DB::transaction(function () use ($email, $password) {
             $now = now();
 
             DB::table('users')->updateOrInsert(
-                ['email' => 'admin@rems.test'],
+                ['email' => $email],
                 [
                     'name' => 'REMS Administrator',
-                    'password' => Hash::make('password123'),
+                    'password' => Hash::make($password),
                     'status' => 'active',
                     'updated_at' => $now,
                     'created_at' => $now,
@@ -25,14 +34,14 @@ class AdminUserSeeder extends Seeder
             );
 
             $admin = DB::table('users')
-                ->where('email', 'admin@rems.test')
+                ->where('email', $email)
                 ->first();
 
             $adminRole = DB::table('roles')
                 ->where('slug', 'admin')
                 ->first();
 
-            if (!$adminRole) {
+            if (! $adminRole) {
                 throw new \RuntimeException(
                     'The admin role does not exist. Run RoleSeeder before AdminUserSeeder.'
                 );
