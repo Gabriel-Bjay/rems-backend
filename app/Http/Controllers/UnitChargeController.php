@@ -6,106 +6,111 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
-class UnitController extends Controller
+class UnitChargeController extends Controller
 {
-    //Show units list
-    public function index()
+    public function index(Request $request)
     {
-        $units = DB::table('units')->orderBy('id')->get();
+        $data = $request->validate([
+            'unit_id' => ['nullable', 'integer', 'exists:units,id'],
+        ]);
 
-        return response()->json($units);
+        $query = DB::table('unit_charges')
+            ->orderBy('unit_id')
+            ->orderBy('name');
+
+        if (! empty($data['unit_id'])) {
+            $query->where('unit_id', $data['unit_id']);
+        }
+
+        return response()->json($query->get());
     }
 
-    //Create new unit
     public function store(Request $request)
     {
         $data = $request->validate([
-            'property_id' => ['required', 'integer', 'exists:properties,id'],
-            'agent_id' => ['nullable', 'integer', 'exists:agents,id'],
-            'name' => ['required', 'string', 'max:150'],
-            'type' => ['required', 'string', 'max:50'],
-            'base_rent' => ['required', 'numeric', 'min:0'],
-            'status' => ['nullable', Rule::in(['vacant', 'occupied', 'under_maintenance'])],
-            'description' => ['nullable', 'string'],
+            'unit_id' => ['required', 'integer', 'exists:units,id'],
+            'name' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('unit_charges', 'name')
+                    ->where('unit_id', $request->input('unit_id')),
+            ],
+            'amount' => ['required', 'numeric', 'min:0'],
         ]);
 
-        $data['agent_id'] = $data['agent_id'] ?? null;
-        $data['status'] = $data['status'] ?? 'vacant';
-        $data['description'] = $data['description'] ?? null;
         $data['created_at'] = now();
         $data['updated_at'] = now();
 
-        $id = DB::table('units')->insertGetId($data);
-        $unit = DB::table('units')->find($id);
+        $id = DB::table('unit_charges')->insertGetId($data);
+        $charge = DB::table('unit_charges')->find($id);
 
-        return response()->json($unit, 201);
+        return response()->json($charge, 201);
     }
 
-    //Get unit details using specific unit id
     public function show(string $id)
     {
-        $unit = DB::table('units')->find($id);
+        $charge = DB::table('unit_charges')->find($id);
 
-        if (! $unit) {
-            return response()->json(['message' => 'Unit not found.'], 404);
+        if (! $charge) {
+            return response()->json([
+                'message' => 'Unit charge not found.',
+            ], 404);
         }
 
-        return response()->json($unit);
+        return response()->json($charge);
     }
 
-    //Edit unit details using specific unit id
     public function update(Request $request, string $id)
     {
-        $unit = DB::table('units')->find($id);
+        $charge = DB::table('unit_charges')->find($id);
 
-        if (! $unit) {
-            return response()->json(['message' => 'Unit not found.'], 404);
+        if (! $charge) {
+            return response()->json([
+                'message' => 'Unit charge not found.',
+            ], 404);
         }
+
+        $unitId = $request->input('unit_id', $charge->unit_id);
 
         $data = $request->validate([
-            'property_id' => ['required', 'integer', 'exists:properties,id'],
-            'agent_id' => ['nullable', 'integer', 'exists:agents,id'],
-            'name' => ['required', 'string', 'max:150'],
-            'type' => ['required', 'string', 'max:50'],
-            'base_rent' => ['required', 'numeric', 'min:0'],
-            'status' => ['nullable', Rule::in(['vacant', 'occupied', 'under_maintenance'])],
-            'description' => ['nullable', 'string'],
+            'unit_id' => ['sometimes', 'required', 'integer', 'exists:units,id'],
+            'name' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('unit_charges', 'name')
+                    ->where('unit_id', $unitId)
+                    ->ignore($id),
+            ],
+            'amount' => ['sometimes', 'required', 'numeric', 'min:0'],
         ]);
 
-        $data['agent_id'] = $data['agent_id'] ?? null;
-        $data['status'] = $data['status'] ?? $unit->status;
-        $data['description'] = $data['description'] ?? null;
         $data['updated_at'] = now();
 
-        DB::table('units')->where('id', $id)->update($data);
-        $updatedUnit = DB::table('units')->find($id);
+        DB::table('unit_charges')
+            ->where('id', $id)
+            ->update($data);
 
-        return response()->json($updatedUnit);
+        return response()->json(
+            DB::table('unit_charges')->find($id)
+        );
     }
 
-    //Delete unit using specific unit id
     public function destroy(string $id)
     {
-        $unit = DB::table('units')->find($id);
+        $charge = DB::table('unit_charges')->find($id);
 
-        if (! $unit) {
-            return response()->json(['message' => 'Unit not found.'], 404);
-        }
-
-        // A unit should not be removed while records still depend on it.
-        // Keep only the checks whose foreign key uses onDelete('restrict') in your migration.
-        // Drop any that you intentionally set to cascade (for example, listings).
-        $hasTenancies = DB::table('tenancies')->where('unit_id', $id)->exists();
-        $hasCharges = DB::table('unit_charges')->where('unit_id', $id)->exists();
-        $hasTickets = DB::table('maintenance_tickets')->where('unit_id', $id)->exists();
-
-        if ($hasTenancies || $hasCharges || $hasTickets) {
+        if (! $charge) {
             return response()->json([
-                'message' => 'This unit still has related records (tenancies, charges, or maintenance tickets) and cannot be deleted.',
-            ], 409);
+                'message' => 'Unit charge not found.',
+            ], 404);
         }
 
-        DB::table('units')->where('id', $id)->delete();
+        DB::table('unit_charges')
+            ->where('id', $id)
+            ->delete();
 
         return response()->json(null, 204);
     }

@@ -18,6 +18,9 @@ use App\Http\Controllers\UnitChargeController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\VacateNoticesController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\InvoiceItemController;
+use App\Http\Controllers\PaymentAllocationController;
 
 Route::post('/login', [AuthController::class, 'login']);
 
@@ -57,4 +60,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('listings/{id}/approve', [ListingController::class, 'approve']);
     Route::apiResource('listings', ListingController::class);
     Route::apiResource('notifications', NotificationController::class);
+    Route::apiResource('invoices', InvoiceController::class);
+    Route::apiResource('invoice-items', InvoiceItemController::class);
+    Route::apiResource('payment-allocations', PaymentAllocationController::class);
 });
