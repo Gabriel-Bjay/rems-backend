@@ -1,58 +1,80 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# REMS — Rental & Estate Management System (Backend)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A REST API for managing rental properties end-to-end: property and unit listings, tenancies, billing, payments, maintenance, and agent commissions. Built with Laravel and PostgreSQL, this is the backend for [rems-frontend](https://github.com/Gabriel-Bjay/rems-frontend).
 
-## About Laravel
+## What it does
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Property & unit management** — properties, units, and per-unit recurring charges
+- **Tenancy lifecycle** — create, activate, and end tenancies, with tenancy-specific charges and security deposits
+- **Billing & payments** — invoices with line items, payment recording and confirmation, payment allocation across invoices, and refunds
+- **Agent commissions** — commission tracking tied to owners/agents
+- **Maintenance** — maintenance tickets with assignment and resolution workflow
+- **Listings** — public listing publish/approve/take-down workflow, separate from internal unit records
+- **Notifications** — per-user notifications with mark-as-read
+- **Role-based access** — Sanctum token auth with an admin-only registration endpoint and route-level role middleware
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Tech stack
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Framework:** Laravel 13 (PHP 8.3)
+- **Database:** PostgreSQL
+- **Auth:** Laravel Sanctum (token-based)
+- **Testing:** PHPUnit
 
-## Learning Laravel
+## API overview
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+All endpoints below sit under `/api` and (aside from `/login`) require a Sanctum bearer token.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```
+POST   /login
+POST   /logout
+GET    /me
+POST   /register                          (admin only)
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+/owners, /agents, /tenants                standard CRUD
+/properties, /units, /unit-charges        standard CRUD
+/tenancies, /tenancy-charges              standard CRUD
+POST   /tenancies/{id}/activate
+POST   /tenancies/{id}/end
 
-## Agentic Development
+/deposits, /vacate-notices                standard CRUD
+/invoices, /invoice-items                 standard CRUD
+/payments, /payment-allocations, /refunds standard CRUD
+POST   /payments/{id}/confirm
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+/commissions                              standard CRUD
+/maintenance-tickets                      standard CRUD
+POST   /maintenance-tickets/{id}/assign
+POST   /maintenance-tickets/{id}/resolve
 
-```bash
-composer require laravel/boost --dev
+/listings                                 standard CRUD
+POST   /listings/{id}/approve
+POST   /listings/{id}/publish
+POST   /listings/{id}/take-down
 
-php artisan boost:install
+/notifications                            standard CRUD
+POST   /notifications/{id}/mark-read
+POST   /notifications/mark-all-read
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Getting started
 
-## Contributing
+```bash
+git clone https://github.com/Gabriel-Bjay/rems-backend.git
+cd rems-backend
+composer install
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+cp .env.example .env
+php artisan key:generate
+# set DB_CONNECTION=pgsql and your database credentials in .env
 
-## Code of Conduct
+php artisan migrate
+php artisan serve
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Related
 
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- [rems-frontend](https://github.com/Gabriel-Bjay/rems-frontend) — Angular client for this API
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT
