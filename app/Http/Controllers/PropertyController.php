@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Access;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -10,21 +11,7 @@ class PropertyController extends Controller
     //Show properties list
     public function index(Request $request)
     {
-        $user = $request->user();
-
-        $query = DB::table('properties');
-
-        // an owner sees only their own properties
-        if ($user->role === 'owner') {
-            $owner = DB::table('owners')->where('user_id', $user->id)->first();
-            $query->where('owner_id', $owner->id ?? 0);
-        }
-
-        // admin falls through and sees everything
-
-        $properties = $query->orderByDesc('id')->get();
-
-        return response()->json($properties, 200);
+        return response()->json($this->visible($request)->orderByDesc('properties.id')->get(), 200);
     }
 
     //Create new property
@@ -53,20 +40,10 @@ class PropertyController extends Controller
     //Get property details 
     public function show(Request $request, string $id)
     {
-        $property = DB::table('properties')->find($id);
+        $property = $this->visible($request)->where('properties.id', $id)->first();
 
         if (! $property) {
             return response()->json(['message' => 'Property not found.'], 404);
-        }
-
-        $user = $request->user();
-
-        if ($user->role === 'owner') {
-            $owner = DB::table('owners')->where('user_id', $user->id)->first();
-
-            if (! $owner || $property->owner_id != $owner->id) {
-                return response()->json(['message' => 'You do not have access to this property.'], 403);
-            }
         }
 
         return response()->json($property);
@@ -78,18 +55,8 @@ class PropertyController extends Controller
         $property = DB::table('properties')->find($id);
 
         if (! $property) {
-            return 
+            return
                 response()->json(['message' => 'Property not found.'], 404);
-        }
-
-        $user = $request->user();
-
-        if ($user->role === 'owner') {
-            $owner = DB::table('owners')->where('user_id', $user->id)->first();
-
-            if (! $owner || $property->owner_id != $owner->id) {
-                return response()->json(['message' => 'You do not have access to this property.'], 403);
-            }
         }
 
         $data = $request->validate([
@@ -132,5 +99,27 @@ class PropertyController extends Controller
         DB::table('properties')->where('id', $id)->delete();
 
         return response()->json(null, 204);
+    }
+
+    /** Properties the user may see, with owner, agent and occupancy figures. */
+    private function visible(Request $request): \Illuminate\Database\Query\Builder
+    {
+        $query = DB::table('properties')
+            ->leftJoin('owners', 'owners.id', '=', 'properties.owner_id')
+            ->leftJoin('agents', 'agents.id', '=', 'properties.agent_id')
+            ->select(
+                'properties.*',
+                'owners.fname as owner_fname',
+                'owners.lname as owner_lname',
+                'agents.fname as agent_fname',
+                'agents.lname as agent_lname',
+                DB::raw('(SELECT COUNT(*) FROM units WHERE units.property_id = properties.id) as unit_count'),
+                DB::raw("(SELECT COUNT(*) FROM units WHERE units.property_id = properties.id
+                    AND units.status = 'occupied') as occupied_count"),
+                DB::raw('(SELECT COALESCE(SUM(base_rent), 0) FROM units
+                    WHERE units.property_id = properties.id) as rent_roll'),
+            );
+
+        return Access::limit($query, 'properties.id', Access::for($request->user())->propertyIds());
     }
 }

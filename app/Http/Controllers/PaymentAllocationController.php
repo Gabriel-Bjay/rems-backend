@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Billing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -159,31 +160,6 @@ class PaymentAllocationController extends Controller
 
     private function recalculateInvoiceStatus($invoiceId)
     {
-        $invoice = DB::table('invoices')->find($invoiceId);
-
-        if (! $invoice) {
-            return;
-        }
-
-        if ($invoice->status === 'void') {
-            return;
-        }
-
-        $allocated = DB::table('payment_allocations')
-            ->where('invoice_id', $invoiceId)
-            ->sum('amount_applied');
-
-        if ($allocated <= 0) {
-            $status = 'unpaid';
-        } elseif ($allocated < $invoice->total_amount) {
-            $status = 'partially_paid';
-        } else {
-            $status = 'paid';
-        }
-
-        DB::table('invoices')->where('id', $invoiceId)->update([
-            'status' => $status,
-            'updated_at' => now(),
-        ]);
+        app(Billing::class)->recalculateInvoiceStatus((int) $invoiceId);
     }
 }
