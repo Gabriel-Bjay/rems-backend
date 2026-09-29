@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Access;
+use App\Services\Billing;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -11,13 +14,9 @@ class TenancyController extends Controller
 {
     // Get and return a list of tenancies.
 
-    public function index()
+    public function index(Request $request)
     {
-        $tenancies = DB::table('tenancies')
-            ->orderBy('id')
-            ->get();
-
-        return response()->json($tenancies);
+        return response()->json($this->visible($request)->orderBy('tenancies.id')->get());
     }
 
     // Validate and store a new tenancy.
@@ -49,9 +48,9 @@ class TenancyController extends Controller
     }
 
     // Get and return a specific tenancy.
-    public function show(string $id)
+    public function show(Request $request, string $id)
     {
-        $tenancy = DB::table('tenancies')->find($id);
+        $tenancy = $this->visible($request)->where('tenancies.id', $id)->first();
 
         if (! $tenancy) {
             return response()->json([
@@ -122,9 +121,9 @@ class TenancyController extends Controller
     }
 
     // Activate a tenancy.
-    public function activate(string $id)
+    public function activate(Request $request, string $id, Billing $billing)
     {
-        $tenancy = DB::table('tenancies')->find($id);
+        $tenancy = $this->visible($request)->where('tenancies.id', $id)->first();
 
         if (! $tenancy) {
             return response()->json([
@@ -177,15 +176,21 @@ class TenancyController extends Controller
             ], 422);
         }
 
-        return response()->json(
-            DB::table('tenancies')->find($id)
-        );
+        // Move-in paperwork: the deposit owed and the first period's rent,
+        // due before a future move-in date as well as for an ongoing one.
+        $tenancy = DB::table('tenancies')->find($id);
+        $billing->openDeposit($tenancy);
+        $billFrom = CarbonImmutable::parse($tenancy->start_date)->max(CarbonImmutable::today());
+        [$periodStart] = $billing->periodFor($tenancy, $billFrom);
+        $billing->invoiceFor($tenancy, $periodStart);
+
+        return response()->json($tenancy);
     }
 
     // End a tenancy.
-    public function end(string $id)
+    public function end(Request $request, string $id)
     {
-        $tenancy = DB::table('tenancies')->find($id);
+        $tenancy = $this->visible($request)->where('tenancies.id', $id)->first();
 
         if (! $tenancy) {
             return response()->json([
@@ -205,7 +210,8 @@ class TenancyController extends Controller
                 ->where('id', $tenancy->id)
                 ->update([
                     'status' => 'ended',
-                    'end_date' => $tenancy->end_date ?? now()->toDateString(),
+                    // Ending early moves the end date forward to today.
+                    'end_date' => min($tenancy->end_date ?? now()->toDateString(), now()->toDateString()),
                     'updated_at' => now(),
                 ]);
 
@@ -220,5 +226,24 @@ class TenancyController extends Controller
         return response()->json(
             DB::table('tenancies')->find($id)
         );
+    }
+
+    /** Tenancies the user may see, with tenant, unit and property names. */
+    private function visible(Request $request): \Illuminate\Database\Query\Builder
+    {
+        $query = DB::table('tenancies')
+            ->join('tenants', 'tenants.id', '=', 'tenancies.tenant_id')
+            ->join('units', 'units.id', '=', 'tenancies.unit_id')
+            ->join('properties', 'properties.id', '=', 'units.property_id')
+            ->select(
+                'tenancies.*',
+                'tenants.fname as tenant_fname',
+                'tenants.lname as tenant_lname',
+                'units.name as unit_name',
+                'units.base_rent',
+                'properties.name as property_name',
+            );
+
+        return Access::limit($query, 'tenancies.id', Access::for($request->user())->tenancyIds());
     }
 }

@@ -2,18 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Access;
+use App\Services\Billing;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class MaintenanceController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $tickets = DB::table('maintenance_tickets')->orderByDesc('id')->get();
-        return 
-            response()->json($tickets);
+        return response()->json($this->visible($request)->get());
     }
 
+    /**
+     * Staff raise tickets for any unit, owners for units they own, and
+     * tenants for the unit they currently rent.
+     */
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -23,6 +28,27 @@ class MaintenanceController extends Controller
             'title' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
         ]);
+
+        $access = Access::for($request->user());
+        if (! $access->is('admin', 'agent')) {
+            $ownsUnit = $access->ownerId() && in_array((int) $data['unit_id'], $access->managedUnitIds(), true);
+            $tenancy = $access->tenantId()
+                ? DB::table('tenancies')
+                    ->where('tenant_id', $access->tenantId())
+                    ->where('unit_id', $data['unit_id'])
+                    ->where('status', 'active')
+                    ->first()
+                : null;
+
+            if ($tenancy) {
+                $data['raised_by_tenant_id'] = $access->tenantId();
+                $data['tenancy_id'] = $tenancy->id;
+            } elseif (! $ownsUnit) {
+                return response()->json([
+                    'message' => 'You can only raise requests for a unit you rent or own.',
+                ], 422);
+            }
+        }
 
         $data['tenancy_id'] = $data['tenancy_id'] ?? null;
         $data['raised_by_tenant_id'] = $data['raised_by_tenant_id'] ?? null;
@@ -38,20 +64,18 @@ class MaintenanceController extends Controller
 
         $id = DB::table('maintenance_tickets')->insertGetId($data);
 
-        $ticket = DB::table('maintenance_tickets')->find($id);
-
-        return response()->json($ticket, 201);
+        return response()->json($this->visible($request)->where('maintenance_tickets.id', $id)->first(), 201);
     }
 
-    public function show(string $id)
+    public function show(Request $request, string $id)
     {
-        $ticket = DB::table('maintenance_tickets')->find($id);
+        $ticket = $this->visible($request)->where('maintenance_tickets.id', $id)->first();
 
         if (!$ticket) {
             return response()->json(['message' => 'Maintenance ticket not found'], 404);
         }
 
-        return 
+        return
             response()->json($ticket);
     }
 
@@ -78,9 +102,7 @@ class MaintenanceController extends Controller
 
         DB::table('maintenance_tickets')->where('id', $id)->update($data);
 
-        $ticket = DB::table('maintenance_tickets')->find($id);
-
-        return response()->json($ticket);
+        return response()->json($this->visible($request)->where('maintenance_tickets.id', $id)->first());
     }
 
     public function destroy(string $id)
@@ -96,17 +118,27 @@ class MaintenanceController extends Controller
         return response()->json(null, 204);
     }
 
-    public function assign(Request $request, string $id)
+    public function assign(Request $request, string $id, Billing $billing)
     {
-        $ticket = DB::table('maintenance_tickets')->find($id);
+        $ticket = $this->visible($request)->where('maintenance_tickets.id', $id)->first();
 
         if (! $ticket) {
             return response()->json(['message' => 'Ticket not found.'], 404);
         }
 
         $data = $request->validate([
-            'agent_id' => ['required', 'integer', 'exists:agents,id'],
+            'agent_id' => ['nullable', 'integer', 'exists:agents,id'],
         ]);
+
+        // Agents pick tickets up themselves; only an admin hands one to someone else.
+        $access = Access::for($request->user());
+        if (! $access->isAdmin()) {
+            $data['agent_id'] = $access->agentId();
+        }
+
+        if (empty($data['agent_id'])) {
+            return response()->json(['message' => 'Choose the agent who will handle this ticket.'], 422);
+        }
 
         if (in_array($ticket->status, ['resolved', 'closed'])) {
             return response()->json([
@@ -120,14 +152,20 @@ class MaintenanceController extends Controller
             'updated_at' => now(),
         ]);
 
-        $ticket = DB::table('maintenance_tickets')->find($id);
+        $agent = DB::table('agents')->find($data['agent_id']);
+        $billing->notifyTenant(
+            $ticket->raised_by_tenant_id,
+            'maintenance_update',
+            "\"{$ticket->title}\" is being handled by {$agent->fname} {$agent->lname}.",
+            '/app/maintenance',
+        );
 
-        return response()->json($ticket);
+        return response()->json($this->visible($request)->where('maintenance_tickets.id', $id)->first());
     }
 
-    public function resolve(Request $request, string $id)
+    public function resolve(Request $request, string $id, Billing $billing)
     {
-        $ticket = DB::table('maintenance_tickets')->find($id);
+        $ticket = $this->visible($request)->where('maintenance_tickets.id', $id)->first();
 
         if (! $ticket) {
             return response()->json(['message' => 'Ticket not found.'], 404);
@@ -150,9 +188,47 @@ class MaintenanceController extends Controller
             'updated_at' => now(),
         ]);
 
-        $ticket = DB::table('maintenance_tickets')->find($id);
+        $billing->notifyTenant(
+            $ticket->raised_by_tenant_id,
+            'maintenance_update',
+            "\"{$ticket->title}\" has been resolved.",
+            '/app/maintenance',
+        );
 
-        return response()->json($ticket);
+        return response()->json($this->visible($request)->where('maintenance_tickets.id', $id)->first());
+    }
+
+    /** Tickets the user may see, with unit, property, agent and reporter names. */
+    private function visible(Request $request): Builder
+    {
+        $access = Access::for($request->user());
+
+        $query = DB::table('maintenance_tickets')
+            ->join('units', 'units.id', '=', 'maintenance_tickets.unit_id')
+            ->join('properties', 'properties.id', '=', 'units.property_id')
+            ->leftJoin('agents', 'agents.id', '=', 'maintenance_tickets.assigned_to_agent_id')
+            ->leftJoin('tenants', 'tenants.id', '=', 'maintenance_tickets.raised_by_tenant_id')
+            ->select(
+                'maintenance_tickets.*',
+                'units.name as unit_name',
+                'properties.name as property_name',
+                'agents.fname as agent_fname',
+                'agents.lname as agent_lname',
+                'tenants.fname as tenant_fname',
+                'tenants.lname as tenant_lname',
+            )
+            ->orderByDesc('maintenance_tickets.id');
+
+        if (! $access->isAdmin()) {
+            $query->where(function ($q) use ($access) {
+                $q->whereIn('maintenance_tickets.unit_id', $access->managedUnitIds());
+                if ($access->tenantId()) {
+                    $q->orWhere('maintenance_tickets.raised_by_tenant_id', $access->tenantId())
+                        ->orWhereIn('maintenance_tickets.tenancy_id', $access->tenancyIds());
+                }
+            });
+        }
+
+        return $query;
     }
 }
-

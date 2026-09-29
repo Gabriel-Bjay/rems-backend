@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Access;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -9,10 +10,8 @@ use Illuminate\Validation\Rule;
 class UnitController extends Controller
 {
     //Show units list
-    public function index(){
-        $units = DB::table('units')->orderBy('id')->get();
-        return 
-            response()->json($units);
+    public function index(Request $request){
+        return response()->json($this->visible($request)->orderBy('units.id')->get());
     }
 
     //Create new unit
@@ -42,8 +41,8 @@ class UnitController extends Controller
     }
 
     //Get unit details using specific unit id
-    public function show(string $id){
-        $unit = DB::table('units')->find($id);
+    public function show(Request $request, string $id){
+        $unit = $this->visible($request)->where('units.id', $id)->first();
 
         if (! $unit) {
             return 
@@ -97,7 +96,27 @@ class UnitController extends Controller
 
         DB::table('units')->where('id', $id)->delete();
 
-        return 
+        return
             response()->json(['message' => 'Unit deleted successfully.']);
+    }
+
+    /** Units the user may see, with their property and current tenant. */
+    private function visible(Request $request): \Illuminate\Database\Query\Builder
+    {
+        $query = DB::table('units')
+            ->join('properties', 'properties.id', '=', 'units.property_id')
+            ->leftJoin('tenancies', fn ($join) => $join
+                ->on('tenancies.unit_id', '=', 'units.id')
+                ->where('tenancies.status', '=', 'active'))
+            ->leftJoin('tenants', 'tenants.id', '=', 'tenancies.tenant_id')
+            ->select(
+                'units.*',
+                'properties.name as property_name',
+                'tenancies.id as active_tenancy_id',
+                'tenants.fname as tenant_fname',
+                'tenants.lname as tenant_lname',
+            );
+
+        return Access::limit($query, 'units.id', Access::for($request->user())->unitIds());
     }
 }

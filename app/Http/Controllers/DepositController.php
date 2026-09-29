@@ -2,16 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Access;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DepositController extends Controller
 {
-    public function index(){
-        $deposits = DB::table('deposits')->orderBy('id')->get();
-
-        return 
-            response()->json($deposits);
+    public function index(Request $request){
+        return response()->json($this->visible($request)->orderBy('deposits.id')->get());
     }
 
     public function store(Request $request){
@@ -35,8 +33,8 @@ class DepositController extends Controller
         return 
             response()->json($deposit, 201);
     }
-    public function show($id){
-        $deposit = DB::table('deposits')->find($id);
+    public function show(Request $request, $id){
+        $deposit = $this->visible($request)->where('deposits.id', $id)->first();
 
         if(!$deposit){
             return 
@@ -78,7 +76,24 @@ class DepositController extends Controller
 
         DB::table('deposits')->where('id', $id)->delete();
 
-        return 
+        return
             response()->json(null, 204);
+    }
+
+    /** Deposits the user may see, with tenant and unit names. */
+    private function visible(Request $request): \Illuminate\Database\Query\Builder
+    {
+        $query = DB::table('deposits')
+            ->join('tenancies', 'tenancies.id', '=', 'deposits.tenancy_id')
+            ->join('tenants', 'tenants.id', '=', 'tenancies.tenant_id')
+            ->join('units', 'units.id', '=', 'tenancies.unit_id')
+            ->select(
+                'deposits.*',
+                'tenants.fname as tenant_fname',
+                'tenants.lname as tenant_lname',
+                'units.name as unit_name',
+            );
+
+        return Access::limit($query, 'deposits.tenancy_id', Access::for($request->user())->tenancyIds());
     }
 }
