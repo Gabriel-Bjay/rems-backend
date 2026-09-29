@@ -29,6 +29,8 @@ All endpoints below sit under `/api` and (aside from `/login`) require a Sanctum
 
 ```
 POST   /login
+GET    /demo-accounts                     (public; empty unless the demo is on)
+POST   /demo-login                        (public; sign in as a demo owner, agent or tenant)
 POST   /logout
 GET    /me
 GET    /dashboard                         (figures scoped to the caller's role)
@@ -95,6 +97,8 @@ This adds five Nairobi properties with 36 units, 31 tenancies, a year of invoice
 | Tenant | `demo.tenant@rems.test` |
 
 The seeder runs once. Running it again on a database that already has the demo data does nothing.
+
+With `DEMO_PASSWORD` set, the default `php artisan db:seed` loads the demo data too. The Docker image runs that on every start, so setting `DEMO_PASSWORD` on a deployment is enough to turn the demo on. It also enables one-click demo sign-in: `GET /demo-accounts` lists the demo logins and `POST /demo-login` with a `role` of `owner`, `agent` or `tenant` signs in as that account without its password. Admin is never offered. Leave `DEMO_PASSWORD` empty on a deployment that holds real data.
 
 ### Scheduled billing
 
