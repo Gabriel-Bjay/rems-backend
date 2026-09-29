@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\Hash;
  * payments awaiting confirmation, maintenance and listings, plus one login
  * per role.
  *
- * php artisan db:seed --class=DemoSeeder   (needs DEMO_PASSWORD in .env)
+ * php artisan db:seed --class=DemoSeeder   (needs DEMO_PASSWORD in .env;
+ * with it set, the default db:seed loads this too)
  */
 class DemoSeeder extends Seeder
 {
@@ -74,7 +75,7 @@ class DemoSeeder extends Seeder
 
     public function run(): void
     {
-        $password = env('DEMO_PASSWORD');
+        $password = config('demo.password');
         if (! $password) {
             throw new \RuntimeException('DEMO_PASSWORD must be configured to seed the demo logins.');
         }
@@ -112,9 +113,10 @@ class DemoSeeder extends Seeder
             $this->listings();
 
             // One login per role, linked to a real profile in the data above.
-            $this->link('owners', $owners[0], $this->user('Grace Wanjiku', 'demo.owner@rems.test', $password, 'owner'));
-            $this->link('agents', $agents[0], $this->user('Brian Kamau', 'demo.agent@rems.test', $password, 'agent'));
-            $this->link('tenants', $tenants[0], $this->user('Kevin Mwangi', 'demo.tenant@rems.test', $password, 'tenant'));
+            $logins = config('demo.accounts');
+            $this->link('owners', $owners[0], $this->user('Grace Wanjiku', $logins['owner'], $password, 'owner'));
+            $this->link('agents', $agents[0], $this->user('Brian Kamau', $logins['agent'], $password, 'agent'));
+            $this->link('tenants', $tenants[0], $this->user('Kevin Mwangi', $logins['tenant'], $password, 'tenant'));
             $this->recentNotifications($tenants[0]);
         });
 

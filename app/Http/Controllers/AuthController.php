@@ -147,6 +147,39 @@ class AuthController extends Controller
         ]);
     }
 
+    // Demo accounts a visitor can sign in as; empty unless the demo is on.
+    public function demoAccounts()
+    {
+        return response()->json([
+            'accounts' => $this->demoUsers()
+                ->map(fn (User $user, string $role) => ['role' => $role, 'name' => $user->name])
+                ->values(),
+        ]);
+    }
+
+    // Sign in as a demo account by role, without its password.
+    public function demoLogin(Request $request)
+    {
+        $data = $request->validate([
+            'role' => ['required', Rule::in(array_keys(config('demo.accounts')))],
+        ]);
+
+        $user = $this->demoUsers()->get($data['role']);
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'The demo accounts are not available.',
+            ], 404);
+        }
+
+        $token = $user->createToken('demo', ['*'], now()->addHours(config('demo.token_hours')))->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'user' => $this->userPayload($user),
+        ]);
+    }
+
     // Delete the current Sanctum access token.
     public function logout(Request $request)
     {
@@ -176,6 +209,21 @@ class AuthController extends Controller
             'status' => $user->status,
             'roles' => $this->getUserRoles($user->id),
         ];
+    }
+
+    // Active demo users keyed by role, only when DEMO_PASSWORD turns the demo on.
+    private function demoUsers()
+    {
+        if (! config('demo.password')) {
+            return collect();
+        }
+
+        $accounts = config('demo.accounts');
+        $users = User::whereIn('email', $accounts)->where('status', 'active')->get()->keyBy('email');
+
+        return collect($accounts)
+            ->map(fn (string $email, string $role) => $users->get($email))
+            ->filter(fn (?User $user, string $role) => $user && in_array($role, $this->getUserRoles($user->id), true));
     }
 
     // Get every RBAC role assigned to a user.
